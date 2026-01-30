@@ -1,44 +1,60 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-// Lazy-initialized clients - only created when first used at runtime
-let _supabase: SupabaseClient | null = null
-let _supabaseAdmin: SupabaseClient | null = null
+// Check environment variables
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
-function getClient(): SupabaseClient {
-  if (!_supabase) {
+// Create clients conditionally - will be null during build if env vars missing
+let supabaseClient: SupabaseClient | null = null
+let supabaseAdminClient: SupabaseClient | null = null
+
+// Initialize only if we have the required env vars
+if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+  supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  supabaseAdminClient = createClient(
+    SUPABASE_URL,
+    SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY
+  )
+}
+
+// Helper to get client with runtime check
+function ensureClient(): SupabaseClient {
+  if (!supabaseClient) {
+    // Try to create it now (for serverless cold starts)
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    if (!url || !key) {
-      throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    if (url && key) {
+      supabaseClient = createClient(url, key)
+      return supabaseClient
     }
-    _supabase = createClient(url, key)
+    throw new Error('Supabase client not initialized - check environment variables')
   }
-  return _supabase
+  return supabaseClient
 }
 
-function getAdminClient(): SupabaseClient {
-  if (!_supabaseAdmin) {
+function ensureAdminClient(): SupabaseClient {
+  if (!supabaseAdminClient) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    if (!url || !key) {
-      throw new Error('Missing Supabase environment variables')
+    if (url && key) {
+      supabaseAdminClient = createClient(url, key)
+      return supabaseAdminClient
     }
-    _supabaseAdmin = createClient(url, key)
+    throw new Error('Supabase admin client not initialized - check environment variables')
   }
-  return _supabaseAdmin
+  return supabaseAdminClient
 }
 
-// Export getter functions that can be called at runtime
+// Export wrapped clients
 export const supabase = {
-  get client() { return getClient() },
-  from: (table: string) => getClient().from(table),
-  rpc: (fn: string, params?: object) => getClient().rpc(fn, params),
+  from: (table: string) => ensureClient().from(table),
+  rpc: (fn: string, params?: object) => ensureClient().rpc(fn, params),
 }
 
 export const supabaseAdmin = {
-  get client() { return getAdminClient() },
-  from: (table: string) => getAdminClient().from(table),
-  rpc: (fn: string, params?: object) => getAdminClient().rpc(fn, params),
+  from: (table: string) => ensureAdminClient().from(table),
+  rpc: (fn: string, params?: object) => ensureAdminClient().rpc(fn, params),
 }
 
 // Database types

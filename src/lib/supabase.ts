@@ -1,16 +1,61 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+// Lazy-initialized clients to avoid build-time errors
+let _supabase: SupabaseClient | null = null
+let _supabaseAdmin: SupabaseClient | null = null
 
-// Client for browser/frontend use
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+function getSupabaseUrl() {
+  return process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+}
 
-// Admin client for server-side operations (with service role key)
-export const supabaseAdmin = supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey)
-  : supabase
+function getSupabaseAnonKey() {
+  return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+}
+
+function getSupabaseServiceKey() {
+  return process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+}
+
+// Client for browser/frontend use (lazy initialization)
+export function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    const url = getSupabaseUrl()
+    const key = getSupabaseAnonKey()
+    if (url && key) {
+      _supabase = createClient(url, key)
+    } else {
+      throw new Error('Supabase URL or Anon Key not configured')
+    }
+  }
+  return _supabase
+}
+
+// Admin client for server-side operations (lazy initialization)
+export function getSupabaseAdmin(): SupabaseClient {
+  if (!_supabaseAdmin) {
+    const url = getSupabaseUrl()
+    const key = getSupabaseServiceKey() || getSupabaseAnonKey()
+    if (url && key) {
+      _supabaseAdmin = createClient(url, key)
+    } else {
+      throw new Error('Supabase URL or Service Key not configured')
+    }
+  }
+  return _supabaseAdmin
+}
+
+// Backwards compatibility exports (will throw if used during build)
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_, prop) {
+    return (getSupabase() as any)[prop]
+  }
+})
+
+export const supabaseAdmin = new Proxy({} as SupabaseClient, {
+  get(_, prop) {
+    return (getSupabaseAdmin() as any)[prop]
+  }
+})
 
 // Database types
 export type Database = {

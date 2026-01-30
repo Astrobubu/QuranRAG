@@ -1,0 +1,15 @@
+{
+  "enabledMcpjsonServers": [
+    "Ref",
+    "context7",
+    "_shadcn",
+    "_sequential-thinking",
+    "_supabase",
+    "_playwright",
+    "_browsermcp",
+    "_plate",
+    "_semgrep",
+    "_convex-mcp"
+  ],
+  "enableAllProjectMcpServers": true
+}

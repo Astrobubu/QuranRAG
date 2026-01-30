@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getHadith, getHadithByCollection } from '@/lib/rag'
 
+// Force dynamic rendering to prevent build-time database access
+export const dynamic = 'force-dynamic'
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ ref: string }> }

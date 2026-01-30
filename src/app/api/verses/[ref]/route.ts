@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getQuranVerse, getQuranVerseRange, getSurahVerses } from '@/lib/rag'
 import { getSurahName } from '@/lib/arabic-utils'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ ref: string }> }

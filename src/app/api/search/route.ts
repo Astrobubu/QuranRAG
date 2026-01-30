@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { searchQuranVerses, searchHadith, searchAll } from '@/lib/rag'
 import { getSurahName } from '@/lib/arabic-utils'
 
+// Force dynamic rendering to prevent build-time database access
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)

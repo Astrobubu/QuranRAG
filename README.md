@@ -1,5 +1,7 @@
 # QuranRAG - Islamic Lecture Transcript Annotator
 
+**[Live Demo →](https://quran-rag.vercel.app)**
+
 A web application that processes transcribed Islamic lectures, automatically detecting and annotating Quranic verses and Hadith references with corrections, links, and rich metadata.
 
 ## Features

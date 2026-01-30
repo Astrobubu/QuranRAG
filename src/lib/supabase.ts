@@ -1,48 +1,44 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-// Create clients only at runtime, not during build
-function createSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !key) {
-    throw new Error('Missing Supabase environment variables')
+// Lazy-initialized clients - only created when first used at runtime
+let _supabase: SupabaseClient | null = null
+let _supabaseAdmin: SupabaseClient | null = null
+
+function getClient(): SupabaseClient {
+  if (!_supabase) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    if (!url || !key) {
+      throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    }
+    _supabase = createClient(url, key)
   }
-  return createClient(url, key)
+  return _supabase
 }
 
-function createSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !key) {
-    throw new Error('Missing Supabase environment variables')
+function getAdminClient(): SupabaseClient {
+  if (!_supabaseAdmin) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    if (!url || !key) {
+      throw new Error('Missing Supabase environment variables')
+    }
+    _supabaseAdmin = createClient(url, key)
   }
-  return createClient(url, key)
+  return _supabaseAdmin
 }
 
-// Lazy singletons
-let _supabase: ReturnType<typeof createClient> | null = null
-let _supabaseAdmin: ReturnType<typeof createClient> | null = null
-
+// Export getter functions that can be called at runtime
 export const supabase = {
-  from: (...args: Parameters<ReturnType<typeof createClient>['from']>) => {
-    if (!_supabase) _supabase = createSupabaseClient()
-    return _supabase.from(...args)
-  },
-  rpc: (...args: Parameters<ReturnType<typeof createClient>['rpc']>) => {
-    if (!_supabase) _supabase = createSupabaseClient()
-    return _supabase.rpc(...args)
-  },
+  get client() { return getClient() },
+  from: (table: string) => getClient().from(table),
+  rpc: (fn: string, params?: object) => getClient().rpc(fn, params),
 }
 
 export const supabaseAdmin = {
-  from: (...args: Parameters<ReturnType<typeof createClient>['from']>) => {
-    if (!_supabaseAdmin) _supabaseAdmin = createSupabaseAdmin()
-    return _supabaseAdmin.from(...args)
-  },
-  rpc: (...args: Parameters<ReturnType<typeof createClient>['rpc']>) => {
-    if (!_supabaseAdmin) _supabaseAdmin = createSupabaseAdmin()
-    return _supabaseAdmin.rpc(...args)
-  },
+  get client() { return getAdminClient() },
+  from: (table: string) => getAdminClient().from(table),
+  rpc: (fn: string, params?: object) => getAdminClient().rpc(fn, params),
 }
 
 // Database types

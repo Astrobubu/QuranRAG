@@ -1,61 +1,49 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 
-// Lazy-initialized clients to avoid build-time errors
-let _supabase: SupabaseClient | null = null
-let _supabaseAdmin: SupabaseClient | null = null
-
-function getSupabaseUrl() {
-  return process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-}
-
-function getSupabaseAnonKey() {
-  return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-}
-
-function getSupabaseServiceKey() {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-}
-
-// Client for browser/frontend use (lazy initialization)
-export function getSupabase(): SupabaseClient {
-  if (!_supabase) {
-    const url = getSupabaseUrl()
-    const key = getSupabaseAnonKey()
-    if (url && key) {
-      _supabase = createClient(url, key)
-    } else {
-      throw new Error('Supabase URL or Anon Key not configured')
-    }
+// Create clients only at runtime, not during build
+function createSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !key) {
+    throw new Error('Missing Supabase environment variables')
   }
-  return _supabase
+  return createClient(url, key)
 }
 
-// Admin client for server-side operations (lazy initialization)
-export function getSupabaseAdmin(): SupabaseClient {
-  if (!_supabaseAdmin) {
-    const url = getSupabaseUrl()
-    const key = getSupabaseServiceKey() || getSupabaseAnonKey()
-    if (url && key) {
-      _supabaseAdmin = createClient(url, key)
-    } else {
-      throw new Error('Supabase URL or Service Key not configured')
-    }
+function createSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !key) {
+    throw new Error('Missing Supabase environment variables')
   }
-  return _supabaseAdmin
+  return createClient(url, key)
 }
 
-// Backwards compatibility exports (will throw if used during build)
-export const supabase = new Proxy({} as SupabaseClient, {
-  get(_, prop) {
-    return (getSupabase() as any)[prop]
-  }
-})
+// Lazy singletons
+let _supabase: ReturnType<typeof createClient> | null = null
+let _supabaseAdmin: ReturnType<typeof createClient> | null = null
 
-export const supabaseAdmin = new Proxy({} as SupabaseClient, {
-  get(_, prop) {
-    return (getSupabaseAdmin() as any)[prop]
-  }
-})
+export const supabase = {
+  from: (...args: Parameters<ReturnType<typeof createClient>['from']>) => {
+    if (!_supabase) _supabase = createSupabaseClient()
+    return _supabase.from(...args)
+  },
+  rpc: (...args: Parameters<ReturnType<typeof createClient>['rpc']>) => {
+    if (!_supabase) _supabase = createSupabaseClient()
+    return _supabase.rpc(...args)
+  },
+}
+
+export const supabaseAdmin = {
+  from: (...args: Parameters<ReturnType<typeof createClient>['from']>) => {
+    if (!_supabaseAdmin) _supabaseAdmin = createSupabaseAdmin()
+    return _supabaseAdmin.from(...args)
+  },
+  rpc: (...args: Parameters<ReturnType<typeof createClient>['rpc']>) => {
+    if (!_supabaseAdmin) _supabaseAdmin = createSupabaseAdmin()
+    return _supabaseAdmin.rpc(...args)
+  },
+}
 
 // Database types
 export type Database = {
